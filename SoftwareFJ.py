@@ -8,11 +8,13 @@ from datetime import datetime
 from abc import ABC, abstractmethod
 import logging
 import traceback
+from datetime import datetime, date
+from tkcalendar import DateEntry
 
 
 
 #--------------------------------------------------------------------------------------------------------
-# Definimos el sistema de logs
+#Definimos el sistema de logs
 
 
 #Archivo donde se guardan los resgitros Softwarefj.log
@@ -27,7 +29,7 @@ logging.basicConfig(
 
 
 #--------------------------------------------------------------------------------------------------------
-# Definimos exepciones 
+#Definimos exepciones 
 
 
 class ErrorSistema(Exception):
@@ -56,7 +58,7 @@ class OperacionNoPermitidaError(ErrorSistema):
 
 
 #--------------------------------------------------------------------------------------------------------
-# Definimos la clase abstracta entidad
+#Definimos la clase abstracta entidad
 class Entidad(ABC):
 
     #Creamos el constructor para la clase
@@ -80,7 +82,7 @@ class Entidad(ABC):
 
 
 #--------------------------------------------------------------------------------------------------------
-# Definimos la clase cliente
+#Definimos la clase cliente
 class Cliente(Entidad):
 
     #Creamos el constructor para la clase
@@ -135,7 +137,7 @@ class Cliente(Entidad):
 
 
 #--------------------------------------------------------------------------------------------------------
-# Definimos la clase abstracta servicio
+#Definimos la clase abstracta servicio
 class Servicio(Entidad, ABC):
 
     def __init__(self, identificador, nombre, tarifa):
@@ -224,7 +226,7 @@ class Servicio(Entidad, ABC):
         )
 
 #--------------------------------------------------------------------------------------------------------
-# Definimos la clase del servicio de alquiler de salas
+#Definimos la clase del servicio de alquiler de salas
 class ServicioSala(Servicio):
 
     def calcular_tarifa(self, duracion):
@@ -236,13 +238,13 @@ class ServicioSala(Servicio):
         if duracion > 24:
             raise DatosInvalidosError("A room reservation cannot exceed 24 hours.")
 
-    # Describimos el servicio.
+    #Describimos el servicio
     def describir_servicio(self):
         return "Room Reservations by the Hour."
 
 
 #--------------------------------------------------------------------------------------------------------
-# Definimos la clase del servicio de alquiler de equipos
+#Definimos la clase del servicio de alquiler de equipos
 class ServicioEquipo(Servicio):
 
     def calcular_tarifa(self, duracion):
@@ -253,14 +255,14 @@ class ServicioEquipo(Servicio):
         if duracion > 24:
             raise DatosInvalidosError("The equipment rental may not exceed 24 hours.")
 
-    # Describimos el servicio.
+    #Describimos el servicio
     def describir_servicio(self):
 
         return "Technology Equipment Rental."
 
 
 #--------------------------------------------------------------------------------------------------------
-# Definimos la clase del servicio de asesorias especializadas
+#Definimos la clase del servicio de asesorias especializadas
 class ServicioAsesoria(Servicio):
 
     def calcular_tarifa(self, duracion):
@@ -277,71 +279,83 @@ class ServicioAsesoria(Servicio):
 
 
 #--------------------------------------------------------------------------------------------------------
-# Definimos la clase de reserva
+#Definimos la clase de reserva
 class Reserva(Entidad):
 
     #Creamos el constructor para la clase
-    def __init__(self, identificador, cliente, servicio, duracion):
+    def __init__(self, identificador, cliente, servicio, duracion, fecha_reserva):
         super().__init__(identificador)
 
-        #Realizamos la validación que el objeto recibido sea un cliente.
+        #Realizamos la validación que el objeto recibido sea un cliente
         if not isinstance(cliente, Cliente):
             raise DatosInvalidosError("Please select a valid client.")
 
-        #Realizamos la validación que el objeto recibido sea un servicio.
+        #Realizamos la validación que el objeto recibido sea un servicio
         if not isinstance(servicio, Servicio):
             raise DatosInvalidosError("Please select a valid service.")
 
-        #Realizamos la comprobación la disponibilidad del servicio.
+        #Realizamos la comprobación la disponibilidad del servicio
         if not servicio.disponible:
             raise ServicioNoDisponibleError("The selected service is not available.")
 
-        #Realizamos la validación que la duracion sea mayor que 0.
+        #Realizamos la validación que la duracion sea mayor que 0
         if duracion <= 0:
             raise DatosInvalidosError("The duration must be greater than 0.")
 
-        #Ejecutamos las validaciones propias del servicio.
+        #Realizamos la validación que la fecha no este vacia
+        if not fecha_reserva or not str(fecha_reserva).strip():
+            raise DatosInvalidosError("Please select a valid reservation date.")
+
+        #Ejecutamos las validaciones propias del servicio
         servicio.validar_parametros(duracion)
 
-        #Guardamos el cliente asociado a la reserva.
+        #Guardamos el cliente asociado a la reserva
         self.__cliente = cliente
 
-        #Guardamos el servicio seleccionado.
+        #Guardamos el servicio seleccionado
         self.__servicio = servicio
 
-        #Guardamos la duracion de la reserva.
+        #Guardamos la duracion de la reserva
         self.__duracion = duracion
 
-        #Establecemos el estado inicial.
+        #Guardamos la fecha de la reserva 
+        self.__fecha_reserva = str(fecha_reserva).strip()
+
+        #Establecemos el estado inicial
         self.__estado = "Pending"
 
-        #Registramos la fecha y hora de creacion.
+        #Registramos la fecha y hora de creacion
         self.__fecha = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
         #Calculamos el costo incluyendo el impuesto del 19%.
         self.__total = servicio.calcular_costo(duracion, impuesto=0.19)
 
-    #Propiedad para consultar el cliente.
+    #Propiedad para consultar el cliente
     @property
     def cliente(self):
         return self.__cliente
 
-    #Propiedad para consultar el servicio.
+    #Propiedad para consultar el servicio
     @property
     def servicio(self):
         return self.__servicio
 
-    #Propiedad para consultar la duracion.
+    #Propiedad para consultar la duracion
     @property
     def duracion(self):
         return self.__duracion
 
-    #Propiedad para consultar el estado.
+    #Propiedad para consultar la fecha
+    @property
+    def fecha_reserva(self):
+        return self.__fecha_reserva
+
+    #Propiedad para consultar el estado
     @property
     def estado(self):
         return self.__estado
 
-    #Propiedad para consultar el total.
+    #Propiedad para consultar el total
     @property
     def total(self):
         return self.__total
@@ -353,10 +367,10 @@ class Reserva(Entidad):
         if self.__estado != "Pending":
             raise OperacionNoPermitidaError("Only reservations with a “pending” status can be confirmed..")
 
-        #Actualizamos el estado de la reserva.
+        #Actualizamos el estado de la reserva
         self.__estado = "Confirmed"
 
-        #Registramos el evento en el archivo de logs.
+        #Registramos el evento en el archivo de logs
         logging.info(
             "Reservation %s Confirmed.", self.identificador)
 
@@ -368,10 +382,10 @@ class Reserva(Entidad):
         if self.__estado == "Canceled":
             raise OperacionNoPermitidaError("This reservation has already been canceled.")
 
-        #Actualizamos el estado de la reserva.
+        #Actualizamos el estado de la reserva
         self.__estado = "Canceled"
 
-        #Registramos el evento en el archivo de logs.
+        #Registramos el evento en el archivo de logs
         logging.info("Reservation %s canceled.", self.identificador)
 
 
@@ -384,7 +398,7 @@ class Reserva(Entidad):
 
             self.confirmar()
 
-        #Capturamos los errores relacionados con reservas.
+        #Capturamos los errores relacionados con reservas
         except ReservaError as error:
 
             #Guardamos el error en el archivo de logs.
@@ -404,6 +418,7 @@ class Reserva(Entidad):
             f"Cliente: {self.cliente.nombre} | "
             f"Servicio: {self.servicio.nombre} | "
             f"Duracion: {self.duracion} horas | "
+            f"Fecha Reserva: {self.fecha_reserva} | "
             f"Total: ${self.total:,.0f} | "
             f"Estado: {self.estado} | "
             f"Fecha: {self.__fecha}"
@@ -411,7 +426,7 @@ class Reserva(Entidad):
 
 
 #--------------------------------------------------------------------------------------------------------
-# Definimos la clase principal del Sistema Software
+#Definimos la clase principal del Sistema Software
 class SistemaSoftwareFJ:
 
     #Creamos el constructor para la clase
@@ -431,7 +446,7 @@ class SistemaSoftwareFJ:
             ServicioAsesoria("03", "Specialized Consulting", 60000)
         ]
 
-        #Incorporamos los servicios a la lista principal.
+        #Incorporamos los servicios a la lista principal
         self.servicios.extend(servicios_iniciales)
 
         #Registramos el evento.
@@ -441,7 +456,7 @@ class SistemaSoftwareFJ:
     #Creamos el metodo para registrar el cliente
     def registrar_cliente(self, cliente):
 
-        #Validamos que el objeto recibido sea un cliente.
+        #Validamos que el objeto recibido sea un cliente
         if not isinstance(cliente, Cliente):
             raise DatosInvalidosError("The object received is not a valid client.")
 
@@ -461,7 +476,7 @@ class SistemaSoftwareFJ:
     #Creamos el metodo para registrar el cliente
     def registrar_servicio(self, servicio):
 
-        #Validamos que el servicio sea valido.
+        #Validamos que el servicio sea valido
         if not isinstance(servicio, Servicio):
             raise DatosInvalidosError("The service you entered is invalid.")
 
@@ -479,21 +494,23 @@ class SistemaSoftwareFJ:
 
 
     #Creamos el metodo para registrar el cliente
-    def crear_reserva(self, identificador, cliente, servicio, duracion):
+    def crear_reserva(self, identificador, cliente, servicio, duracion, fecha_reserva=None):
 
-        #Validamos que el codigo de reserva no exista.
+        #Validamos que el codigo de reserva no exista
         for reserva in self.reservas:
-
             if reserva.identificador == identificador:
                 raise ReservaError("The reservation code already exists.")
 
-        # Creamos el objeto Reserva.
-        reserva = Reserva(identificador, cliente, servicio, duracion)
+        if fecha_reserva is None:
+            fecha_reserva = date.today().strftime("%d/%m/%Y")
 
-        # Agregamos la reserva a la lista.
+        #Creamos el objeto Reserva
+        reserva = Reserva(identificador, cliente, servicio, duracion, fecha_reserva)
+
+        #Agregamos la reserva a la lista
         self.reservas.append(reserva)
 
-        # Registramos la creacion de la reserva.
+        #Registramos la creacion de la reserva.
         logging.info("Reservation %s created correctly.", identificador)
 
         return reserva
@@ -502,7 +519,7 @@ class SistemaSoftwareFJ:
     #Creamos el metodo para registrar buscar el cliente
     def buscar_cliente(self, identificacion):
 
-        # Recorremos la lista de clientes.
+        #Recorremos la lista de clientes
         for cliente in self.clientes:
 
             if cliente.identificador == identificacion:
@@ -534,7 +551,7 @@ class SistemaSoftwareFJ:
 
 
 #--------------------------------------------------------------------------------------------------------
-# Definimos la clase de la interfaz grafica
+#Definimos la clase de la interfaz grafica
 class AplicacionSoftwareFJ:
 
     #Creamos el constructor para la clase
@@ -585,7 +602,7 @@ class AplicacionSoftwareFJ:
         self.tabla_consultas = tk.Frame(self.notebook, bg="white")
         self.notebook.add(self.tabla_consultas, text="Inquiries")
 
-        #Creamos los metodos que construyen cada pestaña.
+        #Creamos los metodos que construyen cada pestaña
         self.crear_tabla_clientes()
         self.crear_tabla_servicios()
         self.crear_tabla_reservas()
@@ -671,6 +688,11 @@ class AplicacionSoftwareFJ:
         self.ent_duracion = tk.Entry( formulario, width=30)
         self.ent_duracion.grid( row=3, column=1, pady=5)
 
+
+        tk.Label(formulario, text="Reservation Date:", bg="white").grid(row=4, column=0, sticky="w", pady=5)
+        self.ent_fecha = DateEntry(formulario, width=27, background="#176B87", foreground="white", borderwidth=2, mindate=date.today(), date_pattern="dd/mm/yyyy")
+        self.ent_fecha.grid(row=4, column=1, pady=5)
+
         #Contenedor superior para los 3 botones en el mismo renglón
         frame_botones = tk.Frame(self.tabla_reservas, bg="white")
         frame_botones.pack(fill="x", padx=15, pady=(10, 0))
@@ -690,7 +712,7 @@ class AplicacionSoftwareFJ:
         tk.Button(frame_botones, text="Cancel Reservation", command=self.cancelar_reserva, bg="#C0392B", fg="white", width=20).grid(row=0, column=2, sticky="e")
 
         #Creamos la tabla de reservas
-        self.lista_reservas = self.crear_tabla(self.tabla_reservas, ("Code", "Customer", "Service", "Hours", "Total", "Status"))
+        self.lista_reservas = self.crear_tabla(self.tabla_reservas, ("Code", "Customer", "Service", "Date", "Hours", "Total", "Status"))
 
         #Contenedor inferior para el botón de actualizar
         frame_inferior = tk.Frame(self.tabla_reservas, bg="white")
@@ -902,6 +924,7 @@ class AplicacionSoftwareFJ:
 
             #Convertimos la duracion ingresada a entero
             duracion = int(self.ent_duracion.get())
+            fecha_reserva = self.ent_fecha.get()
 
             #Buscamos el cliente
             cliente = self.sistema.buscar_cliente(self.combo_cliente.get().split(" - ")[0])
@@ -910,7 +933,7 @@ class AplicacionSoftwareFJ:
             servicio = self.sistema.buscar_servicio(self.combo_servicio.get().split(" - ")[0])
 
             #Creamos la reserva en el sistema
-            reserva = self.sistema.crear_reserva(codigo, cliente, servicio, duracion)
+            reserva = self.sistema.crear_reserva(codigo, cliente, servicio, duracion, fecha_reserva)
 
             #Generamos el mensaje de reserva exitosa
             messagebox.showinfo(
@@ -946,6 +969,7 @@ class AplicacionSoftwareFJ:
         self.combo_cliente.set("")
         self.combo_servicio.set("")
         self.ent_duracion.delete(0, tk.END)
+        self.ent_fecha.set_date(date.today())
     
         # Opcional: pone el cursor listo para escribir en el primer campo
         self.ent_reserva.focus()
@@ -1060,7 +1084,7 @@ class AplicacionSoftwareFJ:
             else:
                 tipo = "Another"
 
-            #Insertamos el servicio en la tabla.
+            #Insertamos el servicio en la tabla
             self.lista_servicios.insert("", tk.END, values=( servicio.identificador, servicio.nombre, tipo, f"${servicio.tarifa:,.0f}", estado))
 
 
@@ -1068,7 +1092,7 @@ class AplicacionSoftwareFJ:
         for reserva in self.sistema.reservas:
 
             #Insertamos cada reserva en la tabla
-            self.lista_reservas.insert( "", tk.END, values=(reserva.identificador, reserva.cliente.nombre, reserva.servicio.nombre, reserva.duracion, f"${reserva.total:,.0f}", reserva.estado))
+            self.lista_reservas.insert( "", tk.END, values=(reserva.identificador, reserva.cliente.nombre, reserva.servicio.nombre, reserva.fecha_reserva, reserva.duracion, f"${reserva.total:,.0f}", reserva.estado))
 
      
         #Construimos una lista con identificacion y nombre, para actualizar la lista desplegable de clientes.
@@ -1251,5 +1275,6 @@ if __name__ == "__main__":
     finally:
 
         logging.info("Completion of the FJ Software Application.")
+
 
 
